@@ -1,0 +1,9 @@
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[border-mimetype]
+  "*.tsx" = "application/javascript"
+  "*.ts" = "application/javascript"

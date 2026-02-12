@@ -1,0 +1,6 @@
+
+User-agent: *
+Allow: /
+
+# Sitemap será gerado automaticamente se usar ferramentas de SEO da Hostinger
+# Sitemap: https://seusite.com.br/sitemap.xml
