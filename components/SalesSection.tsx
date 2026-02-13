@@ -106,9 +106,6 @@ const SalesSection: React.FC = () => {
                     {[1,2,3,4,5].map(s => <Star key={s} size={12} className="fill-yellow-400 text-yellow-400" />)}
                     <span className="text-xs text-gray-400 ml-1">(40+ Avaliações)</span>
                 </div>
-                <div className="mt-auto flex items-center justify-between">
-                  <span className="text-xl font-bold text-gray-900">R$ {product.price.toFixed(2)}</span>
-                </div>
               </div>
             </div>
           ))}

@@ -68,7 +68,7 @@ const SpaIndications: React.FC = () => {
 
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[600px]">
             {profiles.map((profile, i) => (
-              <div key={i} className={`group relative overflow-hidden rounded-[2.5rem] shadow-xl ${i === 0 ? 'md:row-span-2' : ''}`}>
+              <div key={i} className={`group relative overflow-hidden rounded-[2.5rem] shadow-xl md:h-full min-h-[500px]`}>
                 <img src={profileImages[i]} alt={profile.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/20 to-transparent"></div>
                 <div className="absolute bottom-0 left-0 p-8 text-white">
