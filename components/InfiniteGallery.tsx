@@ -1,29 +1,62 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { GALLERY_IMAGES } from '../constants';
 import { GalleryImage } from '../types';
-import { ImagePlus, Instagram, CameraOff, Trash2 } from 'lucide-react';
+import { ImagePlus, Instagram, CameraOff, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { uploadImageToSupabase, getUploadedImages, deleteImageFromSupabase } from '../services/imageService';
 
 const STORAGE_KEY = 'spa_low_stress_uploaded_images';
 
 const InfiniteGallery: React.FC = () => {
   const [uploadedImages, setUploadedImages] = useState<GalleryImage[]>([]);
   const [showAdminControls, setShowAdminControls] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isLoadingFromSupabase, setIsLoadingFromSupabase] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const instagramUrl = "https://www.instagram.com/spalowstress?igsh=MXZ6ZHpubnB6N2k2Mg==";
 
-  // 1. Carregar imagens salvas ao iniciar
+  // 1. Carregar imagens salvas ao iniciar (do Supabase e localStorage como fallback)
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    const loadImages = async () => {
+      setIsLoadingFromSupabase(true);
       try {
-        setUploadedImages(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar galeria local:", e);
+        // Tentar carregar do Supabase primeiro
+        const supabaseImages = await getUploadedImages();
+        if (supabaseImages.length > 0) {
+          setUploadedImages(supabaseImages);
+          // Se conseguiu do Supabase, limpar localStorage antigo
+          localStorage.removeItem(STORAGE_KEY);
+        } else {
+          // Fallback para localStorage
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            try {
+              setUploadedImages(JSON.parse(saved));
+            } catch (e) {
+              console.error("Erro ao carregar galeria local:", e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar imagens do Supabase:", error);
+        // Tentar carregar do localStorage como fallback
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            setUploadedImages(JSON.parse(saved));
+          } catch (e) {
+            console.error("Erro ao carregar galeria local:", e);
+          }
+        }
+      } finally {
+        setIsLoadingFromSupabase(false);
       }
-    }
+    };
+
+    loadImages();
   }, []);
 
-  // 2. Salvar sempre que a lista de uploads mudar
+  // 2. Sincronizar com localStorage como backup
   useEffect(() => {
     if (uploadedImages.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadedImages));
@@ -43,29 +76,56 @@ const InfiniteGallery: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
-      // Fix: Explicitly type 'file' as 'File' to avoid 'unknown' type error when passing it to FileReader methods
-      Array.from(files).forEach((file: File) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const newImage: GalleryImage = {
-            id: Date.now() + Math.random(),
-            src: reader.result as string,
-            type: 'upload',
-          };
+      setIsUploading(true);
+      setUploadError(null);
+
+      for (const file of Array.from(files)) {
+        try {
+          // Fazer upload para Supabase
+          const newImage = await uploadImageToSupabase(file);
           setUploadedImages((prev) => [...prev, newImage]);
-        };
-        reader.readAsDataURL(file);
-      });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao fazer upload';
+          setUploadError(errorMessage);
+          console.error('Erro ao fazer upload:', error);
+        }
+      }
+
+      setIsUploading(false);
+      // Limpar o input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
-  const clearGallery = () => {
+  const clearGallery = async () => {
     if (confirm("Tem certeza que deseja apagar todas as fotos enviadas? Isso não afetará as fotos fixas do sistema.")) {
-      setUploadedImages([]);
-      localStorage.removeItem(STORAGE_KEY);
+      setIsUploading(true);
+      setUploadError(null);
+
+      try {
+        // Deletar cada imagem do Supabase
+        for (const image of uploadedImages) {
+          try {
+            await deleteImageFromSupabase(image.src);
+          } catch (error) {
+            console.warn(`Erro ao deletar imagem ${image.id}:`, error);
+          }
+        }
+
+        setUploadedImages([]);
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar galeria';
+        setUploadError(errorMessage);
+        console.error('Erro ao limpar galeria:', error);
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
 
@@ -100,18 +160,42 @@ const InfiniteGallery: React.FC = () => {
             <div className="animate-fade-in flex flex-wrap justify-center gap-3 items-center">
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 bg-green-50 text-green-700 px-6 py-3 rounded-full font-bold hover:bg-green-100 transition-all text-sm border border-green-200 shadow-sm"
+                disabled={isUploading}
+                className="flex items-center gap-2 bg-green-50 text-green-700 px-6 py-3 rounded-full font-bold hover:bg-green-100 transition-all text-sm border border-green-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ImagePlus size={18} /> Adicionar Foto
+                {isUploading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} /> Enviando...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus size={18} /> Adicionar Foto
+                  </>
+                )}
               </button>
               
               {uploadedImages.length > 0 && (
                 <button 
                   onClick={clearGallery}
-                  className="flex items-center gap-2 bg-red-50 text-red-600 px-6 py-3 rounded-full font-bold hover:bg-red-100 transition-all text-sm border border-red-200 shadow-sm"
+                  disabled={isUploading}
+                  className="flex items-center gap-2 bg-red-50 text-red-600 px-6 py-3 rounded-full font-bold hover:bg-red-100 transition-all text-sm border border-red-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={18} /> Limpar Galeria
                 </button>
+              )}
+
+              {uploadError && (
+                <div className="flex items-center gap-2 bg-red-50 text-red-700 px-6 py-3 rounded-full text-sm border border-red-200 shadow-sm w-full max-w-md">
+                  <AlertCircle size={18} className="flex-shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              {isLoadingFromSupabase && (
+                <div className="flex items-center gap-2 text-gray-600 text-sm">
+                  <Loader2 className="animate-spin" size={18} />
+                  Carregando imagens...
+                </div>
               )}
 
               <input 
@@ -158,8 +242,8 @@ const InfiniteGallery: React.FC = () => {
                     </div>
                   </div>
                   {image.type === 'upload' && (
-                    <div className="absolute top-6 left-6 bg-green-500 text-white text-[9px] px-3 py-1 rounded-full font-bold uppercase shadow-lg tracking-widest">
-                      Upload Salvo
+                    <div className="absolute top-6 left-6 bg-blue-500 text-white text-[9px] px-3 py-1 rounded-full font-bold uppercase shadow-lg tracking-widest">
+                      ☁️ Salvo Na Nuvem
                     </div>
                   )}
                 </a>
