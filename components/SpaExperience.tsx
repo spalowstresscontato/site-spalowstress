@@ -85,7 +85,7 @@ const SpaExperience: React.FC = () => {
                 <input type="file" ref={posterInputRef} className="hidden" accept="image/*" onChange={(e) => handleUpload(e, 'poster')} />
               </div>
             )}
-            <div className="relative group rounded-[3rem] overflow-hidden shadow-2xl aspect-[9/16] md:aspect-square bg-gray-200 border-8 border-white">
+            <div className="relative group rounded-[3rem] overflow-hidden shadow-2xl w-[640px] h-[360px] mx-auto bg-gray-200 border-8 border-white">
               <video key={videoSrc} autoPlay muted loop playsInline className="w-full h-full object-cover">
                 <source src={videoSrc} type="video/mp4" />
               </video>

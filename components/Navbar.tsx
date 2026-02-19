@@ -1,18 +1,31 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { RotateCcw, ShieldCheck, ImagePlus } from 'lucide-react';
-
-const LOGO_STORAGE_KEY = 'spa_low_stress_custom_logo';
+import { RotateCcw, ShieldCheck, ImagePlus, Loader2, AlertCircle } from 'lucide-react';
+import { uploadAssetToSupabase, getAssetFromSupabase, validateAndSaveMediaUrl } from '../services/imageService';
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showAdminMode, setShowAdminMode] = useState(false);
-  const [customLogo, setCustomLogo] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
-    if (savedLogo) setCustomLogo(savedLogo);
+    const loadLogo = async () => {
+      try {
+        const savedLogo = await getAssetFromSupabase('logo');
+        if (savedLogo) {
+          setLogoUrl(savedLogo);
+        }
+      } catch (err) {
+        console.warn('Logo padrão será usado:', err);
+      }
+    };
+
+    loadLogo();
 
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -33,27 +46,54 @@ const Navbar: React.FC = () => {
     };
   }, []);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setCustomLogo(base64);
-        localStorage.setItem(LOGO_STORAGE_KEY, base64);
-        // Recarregar para sincronizar com o footer se necessário, 
-        // ou deixar o estado global lidar (neste caso, o storage event resolve se abrir em abas, 
-        // mas para a mesma página, o ideal é o usuário ver a mudança).
-        window.dispatchEvent(new Event('storage')); 
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const logoUrl = await uploadAssetToSupabase(file, 'logo');
+      setLogoUrl(logoUrl);
+      window.dispatchEvent(new Event('storage')); // Para sincronização
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao fazer upload do logo';
+      setError(errorMsg);
+      console.error('Erro:', err);
+    } finally {
+      setIsUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
     }
   };
 
-  const handleGlobalReset = () => {
+  const handleLinkSave = async () => {
+    if (!linkInput.trim()) {
+      setError('Digite uma URL válida');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const savedUrl = await validateAndSaveMediaUrl(linkInput, 'logo');
+      setLogoUrl(savedUrl);
+      setLinkInput('');
+      setShowLinkInput(false);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao salvar link';
+      setError(errorMsg);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleGlobalReset = async () => {
     if (confirm("Deseja reverter TODAS as alterações (Logo, Fotos, Vídeos, Galeria, Produtos) e voltar ao site original?")) {
+      // Limpar localStorage
       const keys = [
-        LOGO_STORAGE_KEY,
+        'spa_low_stress_custom_logo',
         'spa_low_stress_custom_hero',
         'spa_low_stress_uploaded_images',
         'spa_low_stress_comp_before',
@@ -64,6 +104,9 @@ const Navbar: React.FC = () => {
         'spa_low_stress_custom_products'
       ];
       keys.forEach(k => localStorage.removeItem(k));
+      
+      // Limpar Supabase seria necessário executar funções específicas
+      // Por enquanto, apenas limpamos localStorage
       window.location.reload();
     }
   };
@@ -80,9 +123,9 @@ const Navbar: React.FC = () => {
         <div className="flex items-center gap-3 group relative">
           {/* Logo Container */}
           <div className="relative">
-            {customLogo ? (
+            {logoUrl ? (
               <img 
-                src={customLogo} 
+                src={logoUrl} 
                 alt="Logo" 
                 className="w-10 h-10 rounded-full object-cover shadow-lg border border-purple-100"
               />
@@ -93,14 +136,52 @@ const Navbar: React.FC = () => {
             )}
             
             {showAdminMode && (
-              <button 
-                onClick={() => logoInputRef.current?.click()}
-                className="absolute -right-2 -bottom-2 bg-white text-purple-600 p-1 rounded-full shadow-xl border border-purple-100 hover:scale-110 transition-all z-20"
-                title="Trocar Logo"
-              >
-                <ImagePlus size={12} />
-              </button>
+              <div className="absolute -right-2 -bottom-2 flex gap-1">
+                <button 
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="bg-white text-purple-600 p-1 rounded-full shadow-xl border border-purple-100 hover:scale-110 transition-all z-20 disabled:opacity-50"
+                  title="Fazer upload de arquivo"
+                >
+                  <ImagePlus size={12} />
+                </button>
+                
+                <button 
+                  onClick={() => setShowLinkInput(!showLinkInput)}
+                  disabled={isUploading}
+                  className="bg-white text-blue-600 p-1 rounded-full shadow-xl border border-blue-100 hover:scale-110 transition-all z-20 disabled:opacity-50"
+                  title="Colar link"
+                >
+                  🔗
+                </button>
+              </div>
             )}
+
+            {showLinkInput && (
+              <div className="absolute top-12 right-0 bg-white p-2 rounded-lg shadow-lg border-2 border-blue-100 z-30 w-48">
+                <input 
+                  type="url"
+                  placeholder="https://..."
+                  value={linkInput}
+                  onChange={(e) => setLinkInput(e.target.value)}
+                  className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                />
+                <button 
+                  onClick={handleLinkSave}
+                  disabled={isUploading}
+                  className="w-full mt-1 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Salvar
+                </button>
+              </div>
+            )}
+
+            {error && (
+              <div className="absolute top-12 right-0 bg-red-50 border border-red-200 text-red-700 px-3 py-1 rounded text-xs whitespace-nowrap flex items-center gap-1 z-30">
+                <AlertCircle size={12} /> {error}
+              </div>
+            )}
+
             <input 
               type="file" 
               ref={logoInputRef} 
@@ -131,7 +212,8 @@ const Navbar: React.FC = () => {
               <RotateCcw size={14} /> Resetar Site
             </button>
           )}
-          <button className="bg-purple-600 text-white px-5 py-2 md:px-8 md:py-3 rounded-full hover:bg-purple-700 transition-all shadow-md font-bold text-sm md:text-base">
+          <button className="bg-purple-600 text-white px-5 py-2 md:px-8 md:py-3 rounded-full hover:bg-purple-700 transition-all shadow-md font-bold text-sm md:text-base flex items-center gap-2">
+            {isUploading && <Loader2 size={16} className="animate-spin" />}
             Agendar Banho
           </button>
         </div>

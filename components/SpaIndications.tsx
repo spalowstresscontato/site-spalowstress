@@ -1,23 +1,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, Star, Target, ArrowRight, ImagePlus } from 'lucide-react';
+import { CheckCircle2, Star, Target, ArrowRight, ImagePlus, Loader2, AlertCircle } from 'lucide-react';
+import { uploadAvatarToSupabase } from '../services/imageService';
 
-const STORAGE_KEY = 'spa_low_stress_indications_v2';
+const DEFAULT_AVATARS = [
+  "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=400",
+  "https://images.unsplash.com/photo-1591160690555-5debfba289f0?auto=format&fit=crop&q=80&w=400"
+];
+
+const PROFILE_IDS = [1, 2, 3]; // IDs dos perfis no banco de dados
 
 const SpaIndications: React.FC = () => {
   const [showAdmin, setShowAdmin] = useState(false);
-  const [profileImages, setProfileImages] = useState([
-    "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
-    "https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=400",
-    "https://images.unsplash.com/photo-1591160690555-5debfba289f0?auto=format&fit=crop&q=80&w=400"
-  ]);
-
+  const [profileImages, setProfileImages] = useState<string[]>(DEFAULT_AVATARS);
+  const [uploadingProfiles, setUploadingProfiles] = useState<Set<number>>(new Set());
+  const [error, setError] = useState<string | null>(null);
   const fileInputs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setProfileImages(JSON.parse(saved));
-
     const handleKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') setShowAdmin(p => !p);
     };
@@ -25,17 +26,30 @@ const SpaIndications: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newImages = [...profileImages];
-        newImages[index] = reader.result as string;
-        setProfileImages(newImages);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newImages));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const profileId = PROFILE_IDS[index];
+    setUploadingProfiles(prev => new Set(prev).add(profileId));
+    setError(null);
+
+    try {
+      const avatarUrl = await uploadAvatarToSupabase(file, profileId);
+      const newImages = [...profileImages];
+      newImages[index] = avatarUrl;
+      setProfileImages(newImages);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao fazer upload';
+      setError(errorMsg);
+      console.error('Erro:', err);
+    } finally {
+      setUploadingProfiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(profileId);
+        return newSet;
+      });
+      if (fileInputs[index].current) fileInputs[index].current!.value = '';
     }
   };
 
@@ -64,6 +78,11 @@ const SpaIndications: React.FC = () => {
                 </div>
               ))}
             </div>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[600px]">
@@ -77,9 +96,23 @@ const SpaIndications: React.FC = () => {
                   <p className="text-sm text-gray-300 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all">{profile.desc}</p>
                 </div>
                 {showAdmin && (
-                  <button onClick={() => fileInputs[i].current?.click()} className="absolute top-4 right-4 bg-white/90 backdrop-blur p-3 rounded-full shadow-lg text-purple-600 hover:scale-110 transition-all">
-                    <ImagePlus size={20} />
-                    <input type="file" ref={fileInputs[i]} className="hidden" accept="image/*" onChange={(e) => handleUpload(e, i)} />
+                  <button 
+                    onClick={() => fileInputs[i].current?.click()} 
+                    disabled={uploadingProfiles.has(PROFILE_IDS[i])}
+                    className="absolute top-4 right-4 bg-white/90 backdrop-blur p-3 rounded-full shadow-lg text-purple-600 hover:scale-110 transition-all disabled:opacity-50"
+                  >
+                    {uploadingProfiles.has(PROFILE_IDS[i]) ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      <ImagePlus size={20} />
+                    )}
+                    <input 
+                      type="file" 
+                      ref={fileInputs[i]} 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => handleUpload(e, i)} 
+                    />
                   </button>
                 )}
               </div>

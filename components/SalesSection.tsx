@@ -1,24 +1,23 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { PRODUCTS } from '../constants';
-import { Star, ShoppingCart, Heart, ImagePlus } from 'lucide-react';
-
-const PRODUCTS_STORAGE_KEY = 'spa_low_stress_custom_products';
+import { Star, ShoppingCart, Heart, ImagePlus, Loader2, AlertCircle } from 'lucide-react';
+import { uploadProductImageToSupabase } from '../services/imageService';
 
 const SalesSection: React.FC = () => {
   const [showAdmin, setShowAdmin] = useState(false);
   const [productImages, setProductImages] = useState<Record<number, string>>({});
+  const [uploadingProducts, setUploadingProducts] = useState<Set<number>>(new Set());
+  const [error, setError] = useState<string | null>(null);
   const fileInputs = useRef<Record<number, HTMLInputElement | null>>({});
 
   useEffect(() => {
-    const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-    if (saved) {
-      try {
-        setProductImages(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar produtos:", e);
-      }
-    }
+    // Inicializar com imagens padrão dos produtos
+    const initialImages: Record<number, string> = {};
+    PRODUCTS.forEach(product => {
+      initialImages[product.id] = product.image;
+    });
+    setProductImages(initialImages);
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') setShowAdmin(p => !p);
@@ -27,17 +26,30 @@ const SalesSection: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>, id: number) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, productId: number) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        const newImages = { ...productImages, [id]: base64 };
-        setProductImages(newImages);
-        localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newImages));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setUploadingProducts(prev => new Set(prev).add(productId));
+    setError(null);
+
+    try {
+      const imageUrl = await uploadProductImageToSupabase(file, productId);
+      setProductImages(prev => ({
+        ...prev,
+        [productId]: imageUrl
+      }));
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro ao fazer upload';
+      setError(errorMsg);
+      console.error('Erro:', err);
+    } finally {
+      setUploadingProducts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+      if (fileInputs.current[productId]) fileInputs.current[productId]!.value = '';
     }
   };
 
@@ -54,6 +66,11 @@ const SalesSection: React.FC = () => {
           <p className="text-gray-600">
             Petiscos, brinquedos e cantinhos aconchegantes. Escolhemos a dedo os itens mais divertidos e duráveis.
           </p>
+          {error && (
+            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2 justify-center">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -72,9 +89,14 @@ const SalesSection: React.FC = () => {
                 {showAdmin && (
                   <button 
                     onClick={() => fileInputs.current[product.id]?.click()}
-                    className="absolute top-3 right-3 bg-white/90 backdrop-blur p-2 rounded-full shadow-lg text-purple-600 hover:scale-110 transition-all z-20 border border-purple-100"
+                    disabled={uploadingProducts.has(product.id)}
+                    className="absolute top-3 right-3 bg-white/90 backdrop-blur p-2 rounded-full shadow-lg text-purple-600 hover:scale-110 transition-all z-20 border border-purple-100 disabled:opacity-50"
                   >
-                    <ImagePlus size={18} />
+                    {uploadingProducts.has(product.id) ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <ImagePlus size={18} />
+                    )}
                     <input 
                       type="file" 
                       ref={el => fileInputs.current[product.id] = el} 

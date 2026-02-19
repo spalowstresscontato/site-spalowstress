@@ -13,7 +13,7 @@ import Footer from './components/Footer';
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-purple-200 selection:text-purple-900">
+    <div className="min-h-screen bg-[#E6E6FA] text-gray-900 font-sans selection:bg-purple-200 selection:text-purple-900">
       <Navbar />
       <Hero />
       <InfiniteGallery />
