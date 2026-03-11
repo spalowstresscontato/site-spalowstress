@@ -15,19 +15,15 @@ const InfiniteGallery: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const instagramUrl = "https://www.instagram.com/spalowstress?igsh=MXZ6ZHpubnB6N2k2Mg==";
 
-  // 1. Carregar imagens salvas ao iniciar (do Supabase e localStorage como fallback)
   useEffect(() => {
     const loadImages = async () => {
       setIsLoadingFromSupabase(true);
       try {
-        // Tentar carregar do Supabase primeiro
         const supabaseImages = await getUploadedImages();
         if (supabaseImages.length > 0) {
           setUploadedImages(supabaseImages);
-          // Se conseguiu do Supabase, limpar localStorage antigo
           localStorage.removeItem(STORAGE_KEY);
         } else {
-          // Fallback para localStorage
           const saved = localStorage.getItem(STORAGE_KEY);
           if (saved) {
             try {
@@ -39,7 +35,6 @@ const InfiniteGallery: React.FC = () => {
         }
       } catch (error) {
         console.error("Erro ao carregar imagens do Supabase:", error);
-        // Tentar carregar do localStorage como fallback
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           try {
@@ -56,14 +51,12 @@ const InfiniteGallery: React.FC = () => {
     loadImages();
   }, []);
 
-  // 2. Sincronizar com localStorage como backup
   useEffect(() => {
     if (uploadedImages.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadedImages));
     }
   }, [uploadedImages]);
 
-  // Atalho secreto: Ctrl + Shift + ArrowUp
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') {
@@ -84,7 +77,6 @@ const InfiniteGallery: React.FC = () => {
 
       for (const file of Array.from(files)) {
         try {
-          // Fazer upload para Supabase
           const newImage = await uploadImageToSupabase(file);
           setUploadedImages((prev) => [...prev, newImage]);
         } catch (error) {
@@ -95,7 +87,6 @@ const InfiniteGallery: React.FC = () => {
       }
 
       setIsUploading(false);
-      // Limpar o input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -108,7 +99,6 @@ const InfiniteGallery: React.FC = () => {
       setUploadError(null);
 
       try {
-        // Deletar cada imagem do Supabase
         for (const image of uploadedImages) {
           try {
             await deleteImageFromSupabase(image.src);
@@ -130,15 +120,16 @@ const InfiniteGallery: React.FC = () => {
   };
 
   const allImages = [...GALLERY_IMAGES, ...uploadedImages];
+
   const displayImages = allImages.length > 0 
-    ? [...allImages, ...allImages, ...allImages] 
+    ? allImages
     : [];
 
   return (
     <section id="gallery" className="py-20 bg-white overflow-hidden border-b border-gray-100">
       <div className="container mx-auto px-6 flex flex-col items-center mb-12">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Nossos Amigos Peludos Felizes 📸</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Nossos Amigos Peludos Felizes 🐾</h2>
           <p className="text-gray-500 italic tracking-wide">
             {allImages.length > 0 
               ? "Confira os momentos reais no nosso Instagram @spalowstress" 
@@ -224,28 +215,13 @@ const InfiniteGallery: React.FC = () => {
                   href={instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-72 h-72 mx-4 relative group overflow-hidden rounded-[3rem] shadow-xl cursor-pointer transform transition-all duration-500 hover:scale-105 border-4 border-white"
+                  className="w-72 h-72 mx-4 relative group overflow-hidden rounded-[3rem] shadow-xl cursor-pointer transform transition-all duration-500 hover:scale-105 border-4 border-transparent bg-gradient-to-r from-[#C9A227] via-[#FFD700] to-[#B8962E]"
                 >
                   <img
                     src={image.src}
                     alt="Momento Spa Low Stress"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-purple-900/0 group-hover:bg-purple-900/70 transition-all duration-300 flex items-center justify-center">
-                    <div className="text-center opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 px-4">
-                      <span className="text-white font-bold tracking-widest block text-xl mb-3">
-                        @spalowstress
-                      </span>
-                      <div className="inline-block bg-white/20 backdrop-blur-md px-5 py-2 rounded-full text-white text-[10px] font-bold uppercase border border-white/30">
-                        Ver no Instagram
-                      </div>
-                    </div>
-                  </div>
-                  {image.type === 'upload' && (
-                    <div className="absolute top-6 left-6 bg-blue-500 text-white text-[9px] px-3 py-1 rounded-full font-bold uppercase shadow-lg tracking-widest">
-                      ☁️ Salvo Na Nuvem
-                    </div>
-                  )}
                 </a>
               ))}
             </div>

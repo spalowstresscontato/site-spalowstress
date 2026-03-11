@@ -212,10 +212,7 @@ const Navbar: React.FC = () => {
               <RotateCcw size={14} /> Resetar Site
             </button>
           )}
-          <button className="bg-purple-600 text-white px-5 py-2 md:px-8 md:py-3 rounded-full hover:bg-purple-700 transition-all shadow-md font-bold text-sm md:text-base flex items-center gap-2">
-            {isUploading && <Loader2 size={16} className="animate-spin" />}
-            Agendar Banho
-          </button>
+          
         </div>
       </div>
     </nav>

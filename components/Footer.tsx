@@ -117,12 +117,6 @@ const Footer: React.FC = () => {
               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-purple-600 transition-colors">
                 <Instagram size={18} />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-purple-600 transition-colors">
-                <Facebook size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-purple-600 transition-colors">
-                <Twitter size={18} />
-              </a>
             </div>
             <div className="flex items-center gap-2 text-gray-400 bg-gray-800 px-4 py-3 rounded-xl border border-white/5">
                 <Mail size={16} />

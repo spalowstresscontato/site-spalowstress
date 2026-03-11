@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { PRODUCTS } from '../constants';
-import { Star, ShoppingCart, Heart, ImagePlus, Loader2, AlertCircle } from 'lucide-react';
+import { Star, Heart, ImagePlus, Loader2, AlertCircle, MessageCircle, ArrowRight } from 'lucide-react';
 import { uploadProductImageToSupabase } from '../services/imageService';
+import { supabase } from '../services/supabaseClient';
 
 const SalesSection: React.FC = () => {
   const [showAdmin, setShowAdmin] = useState(false);
@@ -11,16 +11,37 @@ const SalesSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const fileInputs = useRef<Record<number, HTMLInputElement | null>>({});
 
+  const WHATSAPP_URL = "https://wa.me/5511991431367?text=Oi%20Quero%20mais%20informa%C3%A7%C3%B5es%20sobre%20servi%C3%A7os%20e%20cuidados%20do%20SPA%20LOW%20STRESS%20%F0%9F%90%BE";
+
   useEffect(() => {
-    // Inicializar com imagens padrão dos produtos
-    const initialImages: Record<number, string> = {};
-    PRODUCTS.forEach(product => {
-      initialImages[product.id] = product.image;
-    });
-    setProductImages(initialImages);
+    const loadImagesFromDatabase = async () => {
+      try {
+        const initialImages: Record<number, string> = {};
+        PRODUCTS.forEach(p => initialImages[p.id] = p.image);
+
+        const { data, error: dbError } = await supabase
+          .from('product_images')
+          .select('product_id, url')
+          .eq('is_primary', true);
+
+        if (dbError) throw dbError;
+
+        if (data) {
+          const updatedImages: Record<number, string> = {};
+          data.forEach((item: any) => {
+            updatedImages[item.product_id] = item.url;
+          });
+          setProductImages(prev => ({ ...prev, ...updatedImages }));
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar imagens:', err);
+      }
+    };
+
+    loadImagesFromDatabase();
 
     const handleKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') setShowAdmin(p => !p);
+      if (e.ctrlKey && e.shiftKey && e.key === 'ArrowUp') setShowAdmin(prev => !prev);
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -39,10 +60,8 @@ const SalesSection: React.FC = () => {
         ...prev,
         [productId]: imageUrl
       }));
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro ao fazer upload';
-      setError(errorMsg);
-      console.error('Erro:', err);
+    } catch (err: any) {
+      setError(err.message || 'Erro no upload');
     } finally {
       setUploadingProducts(prev => {
         const newSet = new Set(prev);
@@ -55,17 +74,13 @@ const SalesSection: React.FC = () => {
 
   return (
     <section id="shop" className="py-24 bg-white relative">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[80%] bg-purple-50/50 rounded-[100%] blur-3xl -z-10 pointer-events-none"></div>
-
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <div className="flex justify-center mb-4">
-             <Heart className="text-purple-500 fill-purple-200 animate-pulse" size={32} />
+            <Heart className="text-purple-500 fill-purple-200 animate-pulse" size={32} />
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">Escolhas Incríveis</h2>
-          <p className="text-gray-600">
-            Petiscos, brinquedos e cantinhos aconchegantes. Escolhemos a dedo os itens mais divertidos e duráveis.
-          </p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">Nossas Recomendações</h2>
+          <p className="text-gray-600">Produtos selecionados para manter o bem-estar do seu pet em casa.</p>
           {error && (
             <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2 justify-center">
               <AlertCircle size={16} /> {error}
@@ -75,68 +90,67 @@ const SalesSection: React.FC = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {PRODUCTS.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-2xl shadow-lg hover:shadow-2xl hover:shadow-purple-200/50 transition-all duration-300 group flex flex-col overflow-hidden border border-gray-100"
-            >
-              <div className="relative aspect-square overflow-hidden bg-gray-100">
-                <img
-                  src={productImages[product.id] || product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
+            <div key={product.id} className="bg-gradient-to-r from-[#C9A227] via-[#FFD700] to-[#B8962E] p-[3px] rounded-2xl">
+              <div className="bg-white rounded-2xl shadow-lg transition-all duration-300 group flex flex-col overflow-hidden h-[450px]">
                 
-                {showAdmin && (
-                  <button 
-                    onClick={() => fileInputs.current[product.id]?.click()}
-                    disabled={uploadingProducts.has(product.id)}
-                    className="absolute top-3 right-3 bg-white/90 backdrop-blur p-2 rounded-full shadow-lg text-purple-600 hover:scale-110 transition-all z-20 border border-purple-100 disabled:opacity-50"
-                  >
-                    {uploadingProducts.has(product.id) ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <ImagePlus size={18} />
-                    )}
-                    <input 
-                      type="file" 
-                      ref={el => fileInputs.current[product.id] = el} 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={(e) => handleUpload(e, product.id)} 
-                    />
-                  </button>
-                )}
+                {/* MOLDURA DE IMAGEM */}
+                <div className="relative h-64 w-full overflow-hidden bg-gray-100 flex-shrink-0">
+                  <img
+                    src={productImages[product.id] || product.image}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  {showAdmin && (
+                    <button
+                      onClick={() => fileInputs.current[product.id]?.click()}
+                      disabled={uploadingProducts.has(product.id)}
+                      className="absolute top-3 right-3 bg-white/90 p-2 rounded-full shadow-lg text-purple-600 z-20 hover:bg-white transition-colors"
+                    >
+                      {uploadingProducts.has(product.id) ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
+                      <input
+                        type="file"
+                        ref={el => fileInputs.current[product.id] = el}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handleUpload(e, product.id)}
+                      />
+                    </button>
+                  )}
+                </div>
 
-                {product.badge && (
-                  <div className="absolute top-3 left-3 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md animate-bounce-slow">
-                    {product.badge}
+                {/* CONTEÚDO */}
+                <div className="p-6 flex-1 flex flex-col justify-between bg-white">
+                  <div>
+                    <div className="text-xs text-purple-500 font-semibold mb-2 uppercase tracking-wider">
+                      {product.category}
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 leading-tight">
+                      {product.name}
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} size={14} className="fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
                   </div>
-                )}
-                <button className="absolute bottom-4 right-4 bg-white text-purple-600 p-3 rounded-full shadow-lg opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-purple-600 hover:text-white">
-                  <ShoppingCart size={20} />
-                </button>
-              </div>
 
-              <div className="p-6 flex-1 flex flex-col">
-                <div className="text-xs text-purple-500 font-semibold mb-2 uppercase tracking-wide">
-                  {product.category}
+                  {/* BOTÃO SAIBA MAIS (ESTILO WHATSAPP) */}
+                  <div className="mt-4">
+                    <a 
+                      href={WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-purple-600 text-white py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-purple-700 transition-all active:scale-95 shadow-md hover:shadow-purple-200"
+                    >
+                      <span>Saiba Mais</span>
+                      <ArrowRight size={18} />
+                    </a>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">
-                  {product.name}
-                </h3>
-                <div className="flex items-center gap-1 mb-3">
-                    {[1,2,3,4,5].map(s => <Star key={s} size={12} className="fill-yellow-400 text-yellow-400" />)}
-                    <span className="text-xs text-gray-400 ml-1">(40+ Avaliações)</span>
-                </div>
+
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-16 text-center">
-            <button className="px-10 py-4 bg-transparent border-2 border-gray-900 text-gray-900 rounded-full font-bold hover:bg-gray-900 hover:text-white transition-all uppercase tracking-widest text-sm">
-                Explorar Todas as Maravilhas
-            </button>
         </div>
       </div>
     </section>

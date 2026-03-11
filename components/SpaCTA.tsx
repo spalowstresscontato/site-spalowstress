@@ -2,6 +2,8 @@ import React from 'react';
 import { Calendar, ArrowRight, Leaf } from 'lucide-react';
 
 const SpaCTA: React.FC = () => {
+  const WHATSAPP_LINK = "https://wa.me/5511991431367?text=Oi%20Quero%20mais%20informa%C3%A7%C3%B5es%20sobre%20servi%C3%A7os%20e%20cuidados%20do%20SPA%20LOW%20STRESS%20%F0%9F%90%BE";
+
   return (
     <section className="pb-24 bg-white">
       <div className="container mx-auto px-6">
@@ -44,11 +46,16 @@ const SpaCTA: React.FC = () => {
               <p className="text-purple-100">
                 Entre em contato e descubra como o banho de baixo estresse pode transformar a relação do seu cão com a higiene.
               </p>
-              <button className="bg-white text-purple-700 px-12 py-5 rounded-full font-bold text-xl hover:bg-purple-50 transition-all flex items-center gap-3 mx-auto shadow-xl hover:scale-105 group">
+              <a 
+                href={WHATSAPP_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex bg-white text-purple-700 px-12 py-5 rounded-full font-bold text-xl hover:bg-purple-50 transition-all items-center gap-3 mx-auto shadow-xl hover:scale-105 group"
+              >
                 <Calendar />
                 Agendar Agora
                 <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-              </button>
+              </a>
               <p className="text-sm text-purple-200 font-medium">
                 👉 Ofereça um cuidado à altura de quem você ama.
               </p>
