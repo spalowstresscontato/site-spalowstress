@@ -266,6 +266,10 @@ const Hero: React.FC = () => {
               <video
                 src={videoUrl}
                 poster={heroImage || undefined}
+                autoPlay
+                muted
+                loop
+                playsInline
                 controls
                 className="w-full h-full object-cover"
                 preload="metadata"

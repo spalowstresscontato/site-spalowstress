@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, Star, Target, ArrowRight, ImagePlus, Loader2, AlertCircle } from 'lucide-react';
 import { uploadAvatarToSupabase } from '../services/imageService';
+import { supabase } from '../services/supabaseClient'; // ✅ ADICIONADO
 
 const DEFAULT_AVATARS = [
   "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&q=80&w=400",
@@ -26,6 +27,29 @@ const SpaIndications: React.FC = () => {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // ✅ NOVO: carregar imagens do banco
+  useEffect(() => {
+    const loadProfiles = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('perfis_pet')
+          .select('id, avatar_url')
+          .order('id');
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const images = data.map((item, i) => item.avatar_url || DEFAULT_AVATARS[i]);
+          setProfileImages(images);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar perfis:', err);
+      }
+    };
+
+    loadProfiles();
   }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
