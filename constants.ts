@@ -45,12 +45,12 @@ export const PRODUCTS: Product[] = [
 
 export const FAQS: FaqItem[] = [
   {
-    question: "Vocês cuidam de gatos também?",
-    answer: "Com certeza! Amamos nossos amigos felinos. No Spa Low Stress temos protocolos específicos e zonas silenciosas para garantir que eles se sintam seguros e mimados."
+    question: "Qual é o diferencial?",
+    answer: "No SpaLowStress o banho não é feito no automático. Cada pet é observado, respeitado e cuidado de forma individual, com manejo low stress e uma experiência muito mais segura e tranquila.🐾"
   },
   {
-    question: "Os petiscos são seguros para filhotes?",
-    answer: "Sim! Nossa linha selecionada é 100% orgânica e segura. No Spa, também usamos esses petiscos como reforço positivo durante o banho."
+    question: "Porquê devo escolher o SpaLowStress?",
+    answer: "Escolher o SpaLowStress é escolher um banho sem trauma, sem pressa e com propósito. Porque estética importa, mas o bem-estar emocional do pet vem primeiro.✨"
   },
   {
     question: "Como funciona o agendamento?",
